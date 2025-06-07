@@ -19,7 +19,7 @@ class Lang_Dict():
             return f"Error that idk about: {e}"
 
 
-def translate(hand_pos: np.array,pose_pos: np.array, lang_dict: Lang_Dict) -> str:
+def translate(hand_pos: np.array,chest_pos: np.array, lang_dict: Lang_Dict) -> str:
     """
         Translates a letter using the provided language dictionary.
     """
@@ -40,3 +40,24 @@ def translate(hand_pos: np.array,pose_pos: np.array, lang_dict: Lang_Dict) -> st
             raise ValueError("Value not found in the language dictionary.")
     except Exception as e:
         raise e
+    
+
+def add_to_dict(letter: str, hand_pos: np.array, chest_pos: np.array, lang_dict: Lang_Dict) -> str:
+    """
+        Adds a new letter to the language dictionary.
+    """
+    try:
+        wristPos = hand_pos[0]
+        thumbPos = hand_pos[1]
+        indexPos = hand_pos[2]
+        middlePos = hand_pos[3]
+        ringPos = hand_pos[4]
+        pinkyPos = hand_pos[5]
+
+        condition = np.array([
+            
+        ])
+    except Exception as e:
+        raise e
+        return False
+    return lang_dict.addToDict(letter, hand_pos, chest_pos)

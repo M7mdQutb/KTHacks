@@ -10,7 +10,7 @@ import os
 import time
 
 import pyconf
-from core import *
+import core
 
 # Mediapipe Shit
 BaseOptions = mp.tasks.BaseOptions
@@ -80,6 +80,7 @@ if __name__ == "__main__":
                     pose_landmarker_result = pose_landmarker.detect_for_video(mp_image, int(time.time() * 1000))
 
                     if hand_landmarker_result.hand_landmarks and pose_landmarker_result.pose_landmarks:
+                        t = time.time()
                         for i, hand_landmark_list in enumerate(hand_landmarker_result.hand_landmarks):
                             for q, pose_landmark_list in enumerate(pose_landmarker_result.pose_landmarks):
                                 if conf["draw_landmarks"] == "1":
@@ -107,10 +108,34 @@ if __name__ == "__main__":
                                         mp_drawing_styles.get_default_pose_landmarks_style()
                                     )
                                 
+                                if time.time() - t > 2:
+                                    cv2.showtext(frame_copy, f"{core.translate()}")
+
 
                     cv2.imshow("Test1",cv2.cvtColor(frame_copy, cv2.COLOR_RGB2BGR))
                     if cv2.waitKey(5) & 0xFF == 27:
                         break
+                    if cv2.waitKey(5) & 0xFF == ord('s')or cv2.waitKey(5) & 0xFF == ord('S'):
+                        letter = None
+                        if conf['use_console'] == "1":
+                            letter = input("Enter the letter to add: ")
+                        else:
+                            import tkinter as tk
+                            def submit():
+                                global letter
+                                letter = l_stringvar.get()
+                                win.destroy()
+                            win = tk.Tk()
+                            l_stringvar = tk.StringVar()
+                            e = tk.Entry(win, textvariable=l_stringvar)
+                            b = tk.Button(win, text="Submit", command=submit)
+                            e.pack()
+                            b.pack()
+
+                            e.mainloop()
+                        
+                        if letter:
+                            core.add_to_dict(letter, hand_landmarker_result.hand_landmarks[0], pose_landmarker_result.pose_landmarks[0], core.lang_dict)
 
     except Exception as e:
         raise e
