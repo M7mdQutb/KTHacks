@@ -1,4 +1,4 @@
-##**Sign Translator** is the new way to translate sign language to readable text
+## **Sign Translator** is the new way to translate sign language to readable text
 
 > made by Mohammed Kotb for KTHacks 2025 Hackathon
 
