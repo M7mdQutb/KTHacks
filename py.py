@@ -33,8 +33,14 @@ mp_pose = mp.solutions.pose
 
 conf = pyconf.read_ini("config.ini")
 
+pauseVideo = "other/black.mp4"
+
 # Create Emply Lang Dict
-land_dict = core.Lang_Dict()
+if conf["USE_DICT"] == "1":
+    lang_dict = core.Lang_Dict()
+    lang_dict.loadFromFile(file_path=conf["LANG_DICT_PATH"])
+else:
+    lang_dict = core.Lang_Dict()
 
 hand_options = HandLandmarkerOptions(
         base_options=BaseOptions(model_asset_path=conf["HAND_MODEL_PATH"]),
@@ -57,6 +63,7 @@ def get_conditions(allSigns: np.array) -> tuple:
     Extracts conditions from hand and pose landmarks.
     Returns a numpy array of conditions.
     """
+
     if not allSigns.size > 0:
         raise ValueError("No signs detected. Please ensure the data is available.")
     
@@ -234,25 +241,44 @@ def get_conditions(allSigns: np.array) -> tuple:
     except Exception as e:
         raise e
 
+def showinTK(msg):
+    import tkinter as tk
+    win = tk.Tk()
+    l = tk.Label(win, text=f"{msg}")
+    l.pack()
+    win.title(msg)
+    win.mainloop()
+
 
 if __name__ == "__main__":
-    cap = cv2.VideoCapture(conf["VIDEO_PATH"] if conf["USE_VIDEO"] == "1" else 0)
-    if not cap.isOpened():
-        print("Error: Could not open video.")
-        exit()
+    cap = cv2.VideoCapture(pauseVideo)
 
     try:
         with HandLandmarker.create_from_options(hand_options) as hand_landmarker:
             with PoseLandmarker.create_from_options(pose_options) as pose_landmarker:
+                cap = cv2.VideoCapture(conf["VIDEO_PATH"] if conf["USE_VIDEO"] == "1" else 0)
+                if not cap.isOpened():
+                    print("Error: Could not open video.")
+                    exit()
                 allSigns = np.empty((0, 2), dtype=object)
                 innerSigns = np.empty((0, 2), dtype=object)
-                t = time.time()
+                count = 0
+                _first = False
+                if conf["USE_VIDEO"] == "1":
+                    mainletter = None
                 while cap.isOpened():
                     # Read frames and see if it works 
                     success, frame = cap.read()
                     if not success:
                         print(f"Error reading the frame in {cap}")
+                        showinTK(mainletter)
                         break
+
+                    if not _first:
+                        t = time.time()
+                        _first = True
+                    else:
+                        pass
 
                     # Flip the frame
                     frame = cv2.flip(frame, 1)
@@ -326,50 +352,56 @@ if __name__ == "__main__":
                             else:
                                 allSigns = np.append(allSigns, innerSigns, axis=0)
                         innerSigns = np.empty((0, 2), dtype=object)
+                        if allSigns.size > 0:
+                            count += 1
+                            print(get_conditions(allSigns),"\ncount: ",count)
+                            mainletter = core.translate(get_conditions(allSigns), lang_dict=lang_dict)
 
-                    cv2.imshow("Test1",cv2.cvtColor(frame_copy, cv2.COLOR_RGB2BGR))
-                    key_pressed = cv2.waitKey(5) & 0xFF
-                    if key_pressed == 27:
-                        break
-                    elif key_pressed == ord('s') or key_pressed == ord('S'):
-                        print("Saving the signs")
-                        letter = None
-                        if conf['use_console'] == "1":
-                            letter = input("Enter the letter to add: ")
-                        else:
-                            # Create a popup using tk
+                    if conf["USE_VIDEO"] != '1':
+                        cv2.imshow("Test1",cv2.cvtColor(frame_copy, cv2.COLOR_RGB2BGR))
+                        key_pressed = cv2.waitKey(5) & 0xFF
+                        if key_pressed == 27:
+                            pass
+                        elif key_pressed == ord('s') or key_pressed == ord('S'):
+                            print("Saving the signs")
+                            letter = None
+                            if conf['use_console'] == "1":
+                                letter = input("Enter the letter to add: ")
+                            else:
+                                # Create a popup using tk
+                                import tkinter as tk
+                                def submit():
+                                    global letter
+                                    letter = l_stringvar.get()
+                                    win.destroy()
+                                win = tk.Tk()
+                                l_stringvar = tk.StringVar()
+                                e = tk.Entry(win, textvariable=l_stringvar)
+                                b = tk.Button(win, text="Submit", command=submit)
+                                e.pack()
+                                b.pack()
+                                e.mainloop()
+                        
+                            if letter:
+                                lang_dict = core.add_to_dict(letter,get_conditions(allSigns),lang_dict=lang_dict)
+                                lang_dict.saveToFile(conf["LANG_DICT_PATH"])
+                                allSigns = np.empty((0, 2), dtype=object)
+                                
+                        elif key_pressed == ord('g') or key_pressed == ord('G'):
+                            letter = core.translate(get_conditions(allSigns), lang_dict=lang_dict)
+                            cv2.putText(frame_copy, f"Letter: {letter}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
                             import tkinter as tk
-                            def submit():
-                                global letter
-                                letter = l_stringvar.get()
-                                win.destroy()
                             win = tk.Tk()
-                            l_stringvar = tk.StringVar()
-                            e = tk.Entry(win, textvariable=l_stringvar)
-                            b = tk.Button(win, text="Submit", command=submit)
-                            e.pack()
-                            b.pack()
-                            e.mainloop()
-                    
-                        if letter:
-                            lang_dict = core.add_to_dict(letter,get_conditions(allSigns),lang_dict=land_dict)
-                            lang_dict.saveToFile(conf["LANG_DICT_PATH"])
+                            l = tk.Label(win, text=f"Letter: {letter}")
+                            l.pack()
+                            win.mainloop()
                             allSigns = np.empty((0, 2), dtype=object)
-                            
-                    elif key_pressed == ord('g') or key_pressed == ord('G'):
-                        letter = core.translate(get_conditions(allSigns), lang_dict=land_dict)
-                        cv2.putText(frame_copy, f"Letter: {letter}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-                        import tkinter as tk
-                        win = tk.Tk()
-                        l = tk.Label(win, text=f"Letter: {letter}")
-                        l.pack()
-                        win.mainloop()
-                        allSigns = np.empty((0, 2), dtype=object)
-                        innerSigns = np.empty((0, 2), dtype=object)
+                            innerSigns = np.empty((0, 2), dtype=object)
+                            mainletter = letter
 
-                    elif key_pressed == ord('r') or key_pressed == ord('R'):
-                        allSigns = np.empty((0, 2), dtype=object)
-                        innerSigns = np.empty((0, 2), dtype=object)
+                        elif key_pressed == ord('r') or key_pressed == ord('R'):
+                            allSigns = np.empty((0, 2), dtype=object)
+                            innerSigns = np.empty((0, 2), dtype=object)
 
 
     except Exception as e:

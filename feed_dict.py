@@ -253,7 +253,7 @@ def get_conditions(allSigns: np.array) -> tuple:
 
 if __name__ == "__main__":
     cap = cv2.VideoCapture(pauseVideo)
-    try:   
+    try: 
         with HandLandmarker.create_from_options(hand_options) as hand_landmarker:
             with PoseLandmarker.create_from_options(pose_options) as pose_landmarker:
                 for v, vid in tqdm(enumerate(train_vids),total=len(train_vids)):
@@ -266,13 +266,17 @@ if __name__ == "__main__":
                     allSigns = np.empty((0, 2), dtype=object)
                     innerSigns = np.empty((0, 2), dtype=object)
 
-                    t = time.time()
-
+                    _first = False
                     while cap.isOpened():
                         success, frame = cap.read()
                         if not success:
                             logging.error(f"Error reading the frame in {cap}")
                             break
+                        if not _first:
+                            t = time.time()
+                            _first = True
+                        else:
+                            pass
 
                         frame = cv2.flip(frame, 1)
 
@@ -339,6 +343,7 @@ if __name__ == "__main__":
                                     allSigns = np.append(allSigns, innerSigns, axis=0)
                             innerSigns = np.empty((0, 2), dtype=object)
                     lang_dict = core.add_to_dict(vid.split(".")[0],get_conditions(allSigns),lang_dict=land_dict)
+                    print(f"{vid}: {get_conditions(allSigns)}")
                     lang_dict.saveToFile(conf["LANG_DICT_PATH"])
                     allSigns = np.empty((0, 2), dtype=object)
 
