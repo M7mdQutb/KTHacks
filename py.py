@@ -11,6 +11,7 @@ import time
 
 import pyconf
 import core
+import logging
 
 # Mediapipe Shit
 BaseOptions = mp.tasks.BaseOptions
@@ -252,48 +253,40 @@ def showinTK(msg):
 
 if __name__ == "__main__":
     cap = cv2.VideoCapture(pauseVideo)
-
-    try:
+    try: 
         with HandLandmarker.create_from_options(hand_options) as hand_landmarker:
             with PoseLandmarker.create_from_options(pose_options) as pose_landmarker:
-                cap = cv2.VideoCapture(conf["VIDEO_PATH"] if conf["USE_VIDEO"] == "1" else 0)
+                cap = cv2.VideoCapture(f"{conf['VIDEO_PATH']}" if conf["USE_VIDEO"] == "1" else 0)
                 if not cap.isOpened():
-                    print("Error: Could not open video.")
+                    logging.error("Could not open video.")
                     exit()
+                    
                 allSigns = np.empty((0, 2), dtype=object)
                 innerSigns = np.empty((0, 2), dtype=object)
-                count = 0
+
                 _first = False
-                if conf["USE_VIDEO"] == "1":
-                    mainletter = None
                 while cap.isOpened():
-                    # Read frames and see if it works 
                     success, frame = cap.read()
                     if not success:
-                        print(f"Error reading the frame in {cap}")
-                        showinTK(mainletter)
+                        logging.error(f"Error reading the frame in {cap}")
                         break
-
                     if not _first:
                         t = time.time()
                         _first = True
                     else:
                         pass
 
-                    # Flip the frame
                     frame = cv2.flip(frame, 1)
 
-                    # Convert the frame to RGB
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
                     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
 
-                    # Get copy of the frame to draw on
                     frame_copy = frame.copy()
 
                     hand_detection_result = hand_landmarker.detect_for_video(mp_image, int(time.time() * 1000))
                     pose_detection_result = pose_landmarker.detect_for_video(mp_image, int(time.time() * 1000))
-
+                    
                     if hand_detection_result.hand_landmarks and pose_detection_result.pose_landmarks:
                         for i, hand_landmarks_list in enumerate(hand_detection_result.hand_landmarks):
                             for q, pose_landmark_list in enumerate(pose_detection_result.pose_landmarks):
@@ -312,7 +305,7 @@ if __name__ == "__main__":
                                     mp_hands.HAND_CONNECTIONS,
                                     mp_drawing_styles.get_default_hand_landmarks_style(),
                                     mp_drawing_styles.get_default_hand_connections_style())
-                                
+                                    
                                 mp_drawing.draw_landmarks(
                                     frame_copy,
                                     pose_landmarks_proto,
@@ -321,13 +314,9 @@ if __name__ == "__main__":
 
                                 try:
                                     if time.time() - t < 2 and time.time() - t >= 0.5:
-    #                                    print(hand_landmark_list, pose_landmark_list)
                                         pos_row = np.array([[hand_landmarks_list, pose_landmark_list]], dtype=object)
                                         innerSigns = np.append(innerSigns, pos_row, axis=0)
-    #                                   print(innerSigns)
                                         t = time.time()
-    #                                    print("Test after appending")
-    #                                    print(f"{time.time() - t} seconds\n {innerSigns}")
                                     elif time.time() - t >= 2:
                                         pos_row = np.array([[hand_landmarks_list, pose_landmark_list]], dtype=object)
                                         innerSigns = np.append(innerSigns, pos_row, axis=0)
@@ -336,14 +325,13 @@ if __name__ == "__main__":
                                         else:
                                             allSigns = np.append(allSigns, innerSigns, axis=0)
                                         type(innerSigns)
-                                        
+                                            
                                         allSigns = np.append(allSigns, innerSigns, axis=0)
-    #                                    print(f"------------------------------------------------\n2 Seconds:\n\n{time.time() - t} seconds\n {innerSigns}")
                                         innerSigns = np.empty((0, 2), dtype=object)
                                         t = time.time()
                                 except Exception as e:
                                     raise e
-                                
+                                    
 
                     else:
                         if innerSigns.size > 0:
@@ -351,57 +339,58 @@ if __name__ == "__main__":
                                 allSigns = innerSigns.copy()
                             else:
                                 allSigns = np.append(allSigns, innerSigns, axis=0)
-                        innerSigns = np.empty((0, 2), dtype=object)
+                            innerSigns = np.empty((0, 2), dtype=object)
                         if allSigns.size > 0:
-                            count += 1
-                            print(get_conditions(allSigns),"\ncount: ",count)
-                            mainletter = core.translate(get_conditions(allSigns), lang_dict=lang_dict)
+                            letter = core.translate(get_conditions(allSigns),lang_dict=lang_dict)
+                            print(f"{letter}: {get_conditions(allSigns)}")
+                            showinTK(letter)
+                            allSigns = np.empty((0, 2), dtype=object)
 
-                    if conf["USE_VIDEO"] != '1':
-                        cv2.imshow("Test1",cv2.cvtColor(frame_copy, cv2.COLOR_RGB2BGR))
-                        key_pressed = cv2.waitKey(5) & 0xFF
-                        if key_pressed == 27:
-                            pass
-                        elif key_pressed == ord('s') or key_pressed == ord('S'):
-                            print("Saving the signs")
-                            letter = None
-                            if conf['use_console'] == "1":
-                                letter = input("Enter the letter to add: ")
-                            else:
-                                # Create a popup using tk
-                                import tkinter as tk
-                                def submit():
-                                    global letter
-                                    letter = l_stringvar.get()
-                                    win.destroy()
+                if conf["USE_VIDEO"] != '1':
+                    cv2.imshow("Test1",cv2.cvtColor(frame_copy, cv2.COLOR_RGB2BGR))
+                    key_pressed = cv2.waitKey(5) & 0xFF
+                    if key_pressed == 27:
+                        pass
+                    elif key_pressed == ord('s') or key_pressed == ord('S'):
+                        print("Saving the signs")
+                        letter = None
+                        if conf['use_console'] == "1":
+                            letter = input("Enter the letter to add: ")
+                        else:
+                            # Create a popup using tk
+                            import tkinter as tk
+                            def submit():
+                                global letter
+                                letter = l_stringvar.get()
+                                win.destroy()
                                 win = tk.Tk()
-                                l_stringvar = tk.StringVar()
-                                e = tk.Entry(win, textvariable=l_stringvar)
-                                b = tk.Button(win, text="Submit", command=submit)
-                                e.pack()
-                                b.pack()
-                                e.mainloop()
+                            l_stringvar = tk.StringVar()
+                            e = tk.Entry(win, textvariable=l_stringvar)
+                            b = tk.Button(win, text="Submit", command=submit)
+                            e.pack()
+                            b.pack()
+                            e.mainloop()
                         
                             if letter:
                                 lang_dict = core.add_to_dict(letter,get_conditions(allSigns),lang_dict=lang_dict)
                                 lang_dict.saveToFile(conf["LANG_DICT_PATH"])
                                 allSigns = np.empty((0, 2), dtype=object)
                                 
-                        elif key_pressed == ord('g') or key_pressed == ord('G'):
-                            letter = core.translate(get_conditions(allSigns), lang_dict=lang_dict)
-                            cv2.putText(frame_copy, f"Letter: {letter}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-                            import tkinter as tk
-                            win = tk.Tk()
-                            l = tk.Label(win, text=f"Letter: {letter}")
-                            l.pack()
-                            win.mainloop()
-                            allSigns = np.empty((0, 2), dtype=object)
-                            innerSigns = np.empty((0, 2), dtype=object)
-                            mainletter = letter
+                    elif key_pressed == ord('g') or key_pressed == ord('G'):
+                        letter = core.translate(get_conditions(allSigns), lang_dict=lang_dict)
+                        cv2.putText(frame_copy, f"Letter: {letter}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                        import tkinter as tk
+                        win = tk.Tk()
+                        l = tk.Label(win, text=f"Letter: {letter}")
+                        l.pack()
+                        win.mainloop()
+                        allSigns = np.empty((0, 2), dtype=object)
+                        innerSigns = np.empty((0, 2), dtype=object)
+                        mainletter = letter
 
-                        elif key_pressed == ord('r') or key_pressed == ord('R'):
-                            allSigns = np.empty((0, 2), dtype=object)
-                            innerSigns = np.empty((0, 2), dtype=object)
+                    elif key_pressed == ord('r') or key_pressed == ord('R'):
+                        allSigns = np.empty((0, 2), dtype=object)
+                        innerSigns = np.empty((0, 2), dtype=object)
 
 
     except Exception as e:

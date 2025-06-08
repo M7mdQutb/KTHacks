@@ -37,7 +37,7 @@ mp_pose = mp.solutions.pose
 conf = pyconf.read_ini("config.ini")
 
 # Create Emply Lang Dict
-land_dict = core.Lang_Dict()
+lang_dict = core.Lang_Dict()
 
 pauseVideo = "other/black.mp4"
 trainPath = "train/"
@@ -342,7 +342,7 @@ if __name__ == "__main__":
                                 else:
                                     allSigns = np.append(allSigns, innerSigns, axis=0)
                             innerSigns = np.empty((0, 2), dtype=object)
-                    lang_dict = core.add_to_dict(vid.split(".")[0],get_conditions(allSigns),lang_dict=land_dict)
+                    lang_dict = core.add_to_dict(vid.split(".")[0],get_conditions(allSigns),lang_dict=lang_dict)
                     print(f"{vid}: {get_conditions(allSigns)}")
                     lang_dict.saveToFile(conf["LANG_DICT_PATH"])
                     allSigns = np.empty((0, 2), dtype=object)
